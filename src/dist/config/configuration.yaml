@@ -1,0 +1,27 @@
+redis:
+
+  # The Redis host name
+  host: bix
+
+  # The Redis server port
+  port: 6379
+
+  # The timeout in milliseconds for connections
+  timeout: 2000
+
+  # Password for Redis connection
+  password:
+
+  # The Redis database instance (default 0)
+  database: 1
+
+executor:
+
+  # The starting and minimum number of threads in the executor thread pool
+  corePoolSize: 2
+
+  # The maximum number of threads in the executor thread pool
+  maximumPoolSize: 4
+
+  # The time (in milliseconds) to keep unused threads in the pool
+  keepAliveTime: 4

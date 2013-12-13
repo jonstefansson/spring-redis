@@ -1,0 +1,35 @@
+apply plugin: 'java'
+apply plugin: 'application'
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+
+mainClassName = 'net.jonstef.service.SpringRedisService'
+
+jar {
+	manifest {
+		attributes 'Implementation-Title': 'spring-redis', 'Implementation-Version': version
+	}
+}
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+	all*.exclude group: "commons-logging"
+}
+
+dependencies {
+	compile "com.yammer.dropwizard:dropwizard-core:${dropwizardVersion}"
+	compile "org.springframework.data:spring-data-redis:${springRedisVersion}"
+	compile "redis.clients:jedis:${jedisVersion}"
+	compile "cglib:cglib:${cglibVersion}"
+	testCompile "junit:junit:4.+"
+}
+
+run {
+	args = ['server', './src/dist/config/configuration.yaml']
+}
