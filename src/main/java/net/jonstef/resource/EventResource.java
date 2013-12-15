@@ -25,7 +25,9 @@ public class EventResource {
 	@POST
 	public Response sendEvent(@FormParam("message") String eventMessage) {
 		logger.info("sendEvent: {}", eventMessage);
-		redisTemplate.convertAndSend("events", eventMessage);
+		String key = String.format("event:%d", redisTemplate.opsForValue().increment("key:event:sequence", 1l));
+		logger.info("sendEvent: push key {}", key);
+		redisTemplate.opsForList().rightPush("list:event:queue", key);
 		return Response.noContent().build();
 	}
 

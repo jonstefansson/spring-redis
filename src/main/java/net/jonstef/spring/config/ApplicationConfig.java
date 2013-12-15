@@ -3,12 +3,14 @@ package net.jonstef.spring.config;
 import net.jonstef.configuration.RedisConfiguration;
 import net.jonstef.configuration.SpringRedisConfiguration;
 import net.jonstef.event.EventListener;
+import net.jonstef.redis.KeyListener;
+import net.jonstef.redis.LoggingKeyListener;
+import net.jonstef.redis.RedisPoller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 
@@ -45,8 +47,24 @@ public class ApplicationConfig {
 			setConnectionFactory(connectionFactory);
 			setTaskExecutor(managedExecutor);
 		}};
-		container.addMessageListener(listenerAdapter(), new PatternTopic("events"));
+//		container.addMessageListener(listenerAdapter(), new PatternTopic("events"));
 		return container;
+	}
+
+	@Bean
+	KeyListener keyListener() {
+		return new LoggingKeyListener();
+	}
+
+	@Bean
+	RedisPoller poller() {
+		RedisPoller redisPoller = new RedisPoller() {{
+			setStringRedisTemplate(template(connectionFactory()));
+			setSourceKey("list:event:queue");
+			setDestinationKey("list:event:processing");
+			setKeyListener(keyListener());
+		}};
+		return redisPoller;
 	}
 
 	@Bean
