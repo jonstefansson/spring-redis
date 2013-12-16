@@ -11,20 +11,16 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.SchedulingAwareRunnable;
-import org.springframework.util.ClassUtils;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+
+import static net.jonstef.redis.Keys.*;
 
 /**
  * @author Jon Stefansson
  */
 public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAware, SmartLifecycle {
-
-	/**
-	 * Default thread name prefix: "RedisPoller-".
-	 */
-	public static final String DEFAULT_THREAD_NAME_PREFIX = String.format("%s-", ClassUtils.getShortName(RedisPoller.class));
 
 	/**
 	 * The default recovery interval: 5000 ms = 5 seconds.
@@ -85,8 +81,11 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 	 * @see org.springframework.core.task.SimpleAsyncTaskExecutor#SimpleAsyncTaskExecutor(String)
 	 */
 	protected TaskExecutor createDefaultTaskExecutor() {
-		String threadNamePrefix = (beanName != null ? beanName + "-" : DEFAULT_THREAD_NAME_PREFIX);
-		return new SimpleAsyncTaskExecutor(threadNamePrefix);
+		return new SimpleAsyncTaskExecutor("TaskExecutor-");
+	}
+
+	protected TaskExecutor createDefaultPollingExecutor() {
+		return new SimpleAsyncTaskExecutor("PollingExecutor-");
 	}
 
 	/**
@@ -122,6 +121,7 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 
 	@Override
 	public void destroy() throws Exception {
+		logger.info("[{}] destroy()", Thread.currentThread().getName());
 		initialized = false;
 
 		stop();
@@ -145,7 +145,7 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 		}
 
 		if (pollingExecutor == null) {
-			pollingExecutor = taskExecutor;
+			pollingExecutor = createDefaultPollingExecutor();
 		}
 
 		initialized = true;
@@ -158,12 +158,14 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 
 	@Override
 	public void stop(Runnable callback) {
+		logger.info("[{}] stop(callback)", Thread.currentThread().getName());
 		stop();
 		callback.run();
 	}
 
 	@Override
 	public void start() {
+		logger.info("[{}] start()", Thread.currentThread().getName());
 		if (!running) {
 			running = true;
 			// wait for the poller to start before returning
@@ -187,6 +189,7 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 
 	@Override
 	public void stop() {
+		logger.info("[{}] stop()", Thread.currentThread().getName());
 		if (isRunning()) {
 			running = false;
 			pollerTask.cancel();
@@ -212,6 +215,7 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 	 * Method inspecting whether listening for events (and thus using a thread) is actually needed and triggering it.
 	 */
 	private void lazyListen() {
+		logger.info("[{}] lazyListen()", Thread.currentThread().getName());
 		if (isRunning()) {
 			if (!listening) {
 				synchronized (monitor) {
@@ -241,14 +245,8 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 			try {
 				while(running) {
 					final String key = stringRedisTemplate.opsForList().rightPopAndLeftPush(sourceKey, destinationKey, 0, TimeUnit.SECONDS);
-					if (key != null) {
-						taskExecutor.execute(new Runnable() {
-							@Override
-							public void run() {
-								keyListener.process(key);
-							}
-						});
-					}
+					logger.info("[{}] popped and pushed key={}", Thread.currentThread().getName(), key);
+					processKey(key);
 				}
 			}
 			catch (Throwable t) {
@@ -262,12 +260,30 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 
 	}
 
+	protected void processKey(final String key) {
+		logger.info("processKey(key={})", key);
+		if (key != null) {
+			taskExecutor.execute(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						keyListener.process(key);
+					}
+					catch (Throwable t) {
+						logger.error(String.format("Failed to process event with key=%s", key), t);
+					}
+				}
+			});
+		}
+	}
+
 	/**
 	 * Handle poller task exception. Will attempt to restart the poller
 	 * if the Exception is a connection failure (for example, Redis was restarted).
 	 * @param ex Throwable exception
 	 */
 	protected void handlePollerException(Throwable ex) {
+		logger.warn("[{}] handlePollerException: ", Thread.currentThread().getName(), ex.toString());
 		listening = false;
 		if(ex instanceof RedisConnectionFailureException) {
 			if(isRunning()) {
