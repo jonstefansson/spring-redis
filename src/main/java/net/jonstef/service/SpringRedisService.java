@@ -7,14 +7,10 @@ import net.jonstef.configuration.SpringRedisConfiguration;
 import net.jonstef.healthcheck.RedisHealthCheck;
 import net.jonstef.resource.EventResource;
 import net.jonstef.spring.ContextFactory;
-import net.jonstef.spring.ManageableSpringContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Jon Stefansson
@@ -33,9 +29,6 @@ public class SpringRedisService extends Service<SpringRedisConfiguration> {
 
 		GenericApplicationContext context = new ContextFactory().buildContext(configuration, environment);
 		context.registerShutdownHook();
-
-		// Register the Spring context to receive shutdown notification
-		environment.manage(new ManageableSpringContext(context));
 
 		StringRedisTemplate template = context.getBean(StringRedisTemplate.class);
 		EventResource eventResource = new EventResource(template);
