@@ -12,6 +12,7 @@ public class LoggingKeyListener implements KeyListener {
 
 	@Override
 	public void process(final String key) {
-		logger.info("processing key: {}", key);
+		logger.info("[{}] processing key: {}", Thread.currentThread().getName(), key);
 	}
+
 }
