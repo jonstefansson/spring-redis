@@ -8,6 +8,8 @@ import net.jonstef.healthcheck.RedisHealthCheck;
 import net.jonstef.resource.EventResource;
 import net.jonstef.spring.ContextFactory;
 import net.jonstef.spring.ManageableSpringContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -19,6 +21,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class SpringRedisService extends Service<SpringRedisConfiguration> {
 
+	private final Logger logger = LoggerFactory.getLogger(SpringRedisService.class);
+
 	@Override
 	public void initialize(Bootstrap<SpringRedisConfiguration> bootstrap) {
 		bootstrap.setName("spring-redis");
@@ -28,6 +32,7 @@ public class SpringRedisService extends Service<SpringRedisConfiguration> {
 	public void run(SpringRedisConfiguration configuration, Environment environment) throws Exception {
 
 		GenericApplicationContext context = new ContextFactory().buildContext(configuration, environment);
+		context.registerShutdownHook();
 
 		// Register the Spring context to receive shutdown notification
 		environment.manage(new ManageableSpringContext(context));
