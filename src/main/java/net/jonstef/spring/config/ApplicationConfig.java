@@ -2,19 +2,19 @@ package net.jonstef.spring.config;
 
 import net.jonstef.configuration.RedisConfiguration;
 import net.jonstef.configuration.SpringRedisConfiguration;
-import net.jonstef.event.EventListener;
+import net.jonstef.redis.EventProcessingKeyListener;
 import net.jonstef.redis.KeyListener;
-import net.jonstef.redis.LoggingKeyListener;
 import net.jonstef.redis.RedisPoller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 
 import java.util.concurrent.Executor;
+
+import static net.jonstef.redis.Keys.EVENT_PROCESSING;
+import static net.jonstef.redis.Keys.EVENT_QUEUE;
 
 /**
  * @author Jon Stefansson
@@ -26,7 +26,10 @@ public class ApplicationConfig {
 	private SpringRedisConfiguration configuration;
 
 	@Autowired
-	private Executor managedExecutor;
+	private Executor taskExecutor;
+
+	@Autowired
+	private Executor pollingExecutor;
 
 	@Bean
 	JedisConnectionFactory connectionFactory() {
@@ -42,38 +45,25 @@ public class ApplicationConfig {
 	}
 
 	@Bean
-	RedisMessageListenerContainer container(final JedisConnectionFactory connectionFactory) {
-		RedisMessageListenerContainer container = new RedisMessageListenerContainer() {{
-			setConnectionFactory(connectionFactory);
-			setTaskExecutor(managedExecutor);
-		}};
-//		container.addMessageListener(listenerAdapter(), new PatternTopic("events"));
-		return container;
-	}
-
-	@Bean
 	KeyListener keyListener() {
-		return new LoggingKeyListener();
+		return new EventProcessingKeyListener(redisTemplate(connectionFactory()));
 	}
 
 	@Bean
 	RedisPoller poller() {
 		RedisPoller redisPoller = new RedisPoller() {{
-			setStringRedisTemplate(template(connectionFactory()));
-			setSourceKey("list:event:queue");
-			setDestinationKey("list:event:processing");
+			setStringRedisTemplate(redisTemplate(connectionFactory()));
+			setSourceKey(EVENT_QUEUE);
+			setDestinationKey(EVENT_PROCESSING);
 			setKeyListener(keyListener());
+			setTaskExecutor(taskExecutor);
+			setPollingExecutor(pollingExecutor);
 		}};
 		return redisPoller;
 	}
 
 	@Bean
-	MessageListenerAdapter listenerAdapter() {
-		return new MessageListenerAdapter(new EventListener(), "receiveMessage");
-	}
-
-	@Bean
-	StringRedisTemplate template(JedisConnectionFactory connectionFactory) {
+	StringRedisTemplate redisTemplate(JedisConnectionFactory connectionFactory) {
 		return new StringRedisTemplate(connectionFactory);
 	}
 
