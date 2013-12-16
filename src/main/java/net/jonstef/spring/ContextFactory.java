@@ -21,13 +21,21 @@ public class ContextFactory {
 		context.getBeanFactory().registerSingleton("configuration", configuration);
 
 		ExecutorConfiguration executorConfiguration = configuration.getExecutorConfiguration();
-		ExecutorService executorService = environment.managedExecutorService(
-				"Listener-%d",
+		ExecutorService pollerExecutorService = environment.managedExecutorService(
+				"Poller-%d",
+				1,
+				2,
+				executorConfiguration.getKeepAliveTime(),
+				TimeUnit.MILLISECONDS);
+		context.getBeanFactory().registerSingleton("pollingExecutor", pollerExecutorService);
+
+		ExecutorService taskExecutorService = environment.managedExecutorService(
+				"Tasks-%d",
 				executorConfiguration.getCorePoolSize(),
 				executorConfiguration.getMaximumPoolSize(),
 				executorConfiguration.getKeepAliveTime(),
 				TimeUnit.MILLISECONDS);
-		context.getBeanFactory().registerSingleton("managedExecutor", executorService);
+		context.getBeanFactory().registerSingleton("taskExecutor", taskExecutorService);
 
 		context.register(ApplicationConfig.class);
 
