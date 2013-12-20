@@ -1,20 +1,19 @@
 package net.jonstef.spring.config;
 
-import net.jonstef.configuration.RedisConfiguration;
-import net.jonstef.configuration.SpringRedisConfiguration;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.jonstef.redis.EventProcessingKeyListener;
 import net.jonstef.redis.KeyListener;
 import net.jonstef.redis.RedisPoller;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
-import static net.jonstef.redis.Keys.EVENT_PROCESSING;
-import static net.jonstef.redis.Keys.EVENT_QUEUE;
 
 /**
  * @author Jon Stefansson
@@ -22,44 +21,56 @@ import static net.jonstef.redis.Keys.EVENT_QUEUE;
 @Configuration
 public class ApplicationConfig {
 
-	@Autowired
-	private SpringRedisConfiguration configuration;
+	@Value("#{dw.executorConfiguration.corePoolSize}")
+	private int corePoolSize;
 
-	@Autowired
-	private Executor taskExecutor;
+	@Value("#{dw.executorConfiguration.maxPoolSize}")
+	private int maxPoolSize;
 
-	@Autowired
-	private Executor pollingExecutor;
+	@Value("#{dw.redisConfiguration.usePool}")
+	private boolean usePool;
+
+	@Value("#{dw.redisConfiguration.host}")
+	private String host;
+
+	@Value("#{dw.redisConfiguration.port}")
+	private int port;
+
+	@Value("#{dw.redisConfiguration.password}")
+	private String password;
+
+	@Value("#{dw.redisConfiguration.database}")
+	private int database;
+
+	@Value("#{dw.redisConfiguration.timeout}")
+	private int timeout;
 
 	@Bean
 	JedisConnectionFactory connectionFactory() {
-		RedisConfiguration c = configuration.getRedisConfiguration();
 		JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory();
-		jedisConnectionFactory.setUsePool(c.getUsePool());
-		jedisConnectionFactory.setHostName(c.getHost());
-		jedisConnectionFactory.setPort(c.getPort());
-		jedisConnectionFactory.setPassword(c.getPassword());
-		jedisConnectionFactory.setDatabase(c.getDatabase());
-		jedisConnectionFactory.setTimeout(c.getTimeout());
+		jedisConnectionFactory.setUsePool(usePool);
+		jedisConnectionFactory.setHostName(host);
+		jedisConnectionFactory.setPort(port);
+		jedisConnectionFactory.setPassword(password);
+		jedisConnectionFactory.setDatabase(database);
+		jedisConnectionFactory.setTimeout(timeout);
 		return jedisConnectionFactory;
 	}
 
 	@Bean
-	KeyListener keyListener() {
-		return new EventProcessingKeyListener(redisTemplate(connectionFactory()));
+	Executor taskExecutor() throws Exception {
+		ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+		taskExecutor.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("Task-%d").build());
+		taskExecutor.setCorePoolSize(corePoolSize);
+		taskExecutor.setMaxPoolSize(maxPoolSize);
+		taskExecutor.setAllowCoreThreadTimeOut(true);
+		taskExecutor.prefersShortLivedTasks();
+		return taskExecutor;
 	}
 
 	@Bean
-	RedisPoller poller() {
-		RedisPoller redisPoller = new RedisPoller() {{
-			setStringRedisTemplate(redisTemplate(connectionFactory()));
-			setSourceKey(EVENT_QUEUE);
-			setDestinationKey(EVENT_PROCESSING);
-			setKeyListener(keyListener());
-			setTaskExecutor(taskExecutor);
-			setPollingExecutor(pollingExecutor);
-		}};
-		return redisPoller;
+	Executor pollingExecutor() {
+		return Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("Poller-%d").build());
 	}
 
 	@Bean

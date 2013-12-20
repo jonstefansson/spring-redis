@@ -21,7 +21,4 @@ executor:
   corePoolSize: 2
 
   # The maximum number of threads in the executor thread pool
-  maximumPoolSize: 4
-
-  # The time (in milliseconds) to keep unused threads in the pool
-  keepAliveTime: 4
+  maxPoolSize: 4

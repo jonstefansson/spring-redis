@@ -5,21 +5,25 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.SchedulingAwareRunnable;
+import org.springframework.stereotype.Component;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-import static net.jonstef.redis.Keys.*;
+import static net.jonstef.redis.Keys.EVENT_PROCESSING;
+import static net.jonstef.redis.Keys.EVENT_QUEUE;
 
 /**
  * @author Jon Stefansson
  */
+@Component
 public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAware, SmartLifecycle {
 
 	/**
@@ -33,12 +37,14 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 
 	private StringRedisTemplate stringRedisTemplate;
 
-	private String sourceKey;
-	private String destinationKey;
+	private String sourceKey = EVENT_QUEUE;
+	private String destinationKey = EVENT_PROCESSING;
+
 	private KeyListener keyListener;
 
 	// long-running threads that block until an event is popped
 	private Executor pollingExecutor;
+
 	// threads for processing events after they have been popped
 	private Executor taskExecutor;
 
@@ -58,18 +64,28 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 
 	private long recoveryInterval = DEFAULT_RECOVERY_INTERVAL;
 
+	@Autowired
 	public void setStringRedisTemplate(StringRedisTemplate stringRedisTemplate) {
 		this.stringRedisTemplate = stringRedisTemplate;
 	}
 
+	/**
+	 * The Redis key for the list to pull events from
+	 * @param sourceKey
+	 */
 	public void setSourceKey(String sourceKey) {
 		this.sourceKey = sourceKey;
 	}
 
+	/**
+	 * After an event is popped from the queue, it is place here while it is being processed.
+	 * @param destinationKey
+	 */
 	public void setDestinationKey(String destinationKey) {
 		this.destinationKey = destinationKey;
 	}
 
+	@Autowired
 	public void setKeyListener(KeyListener keyListener) {
 		this.keyListener = keyListener;
 	}
@@ -81,11 +97,11 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 	 * @see org.springframework.core.task.SimpleAsyncTaskExecutor#SimpleAsyncTaskExecutor(String)
 	 */
 	protected TaskExecutor createDefaultTaskExecutor() {
-		return new SimpleAsyncTaskExecutor("TaskExecutor-");
+		return new SimpleAsyncTaskExecutor("Task-");
 	}
 
 	protected TaskExecutor createDefaultPollingExecutor() {
-		return new SimpleAsyncTaskExecutor("PollingExecutor-");
+		return new SimpleAsyncTaskExecutor("Poller-");
 	}
 
 	/**
@@ -98,6 +114,7 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 	 *
 	 * @param pollingExecutor The pollingExecutor to set.
 	 */
+	@Autowired
 	public void setPollingExecutor(Executor pollingExecutor) {
 		this.pollingExecutor = pollingExecutor;
 	}
@@ -110,6 +127,7 @@ public class RedisPoller implements InitializingBean, DisposableBean, BeanNameAw
 	 *
 	 * @param taskExecutor The taskExecutor to set.
 	 */
+	@Autowired
 	public void setTaskExecutor(Executor taskExecutor) {
 		this.taskExecutor = taskExecutor;
 	}

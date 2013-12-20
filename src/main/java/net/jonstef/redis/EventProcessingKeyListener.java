@@ -2,10 +2,12 @@ package net.jonstef.redis;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
@@ -17,11 +19,14 @@ import static net.jonstef.redis.Keys.*;
 /**
  * @author Jon Stefansson
  */
+@Component
 public class EventProcessingKeyListener implements KeyListener {
 
 	private final StringRedisTemplate redisTemplate;
+
 	private final Logger logger = LoggerFactory.getLogger(EventProcessingKeyListener.class);
 
+	@Autowired
 	public EventProcessingKeyListener(StringRedisTemplate redisTemplate) {
 		this.redisTemplate = redisTemplate;
 	}

@@ -19,22 +19,14 @@ public class ExecutorConfiguration extends Configuration {
 	@Min(1)
 	@Max(256)
 	@JsonProperty
-	private int maximumPoolSize;
-
-	@Min(1)
-	@Max(65535)
-	@JsonProperty
-	private long keepAliveTime;
+	private int maxPoolSize;
 
 	public int getCorePoolSize() {
 		return corePoolSize;
 	}
 
-	public int getMaximumPoolSize() {
-		return maximumPoolSize;
+	public int getMaxPoolSize() {
+		return maxPoolSize;
 	}
 
-	public long getKeepAliveTime() {
-		return keepAliveTime;
-	}
 }

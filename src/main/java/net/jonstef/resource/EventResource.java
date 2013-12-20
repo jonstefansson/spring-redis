@@ -2,10 +2,12 @@ package net.jonstef.resource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.POST;
@@ -20,11 +22,14 @@ import static net.jonstef.redis.Keys.*;
  * @author Jon Stefansson
  */
 @Path("/event")
+@Component
 public class EventResource {
 
 	private final StringRedisTemplate redisTemplate;
+
 	private final Logger logger = LoggerFactory.getLogger(EventResource.class);
 
+	@Autowired
 	public EventResource(StringRedisTemplate redisTemplate) {
 		this.redisTemplate = redisTemplate;
 	}

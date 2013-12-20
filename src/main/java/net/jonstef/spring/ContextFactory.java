@@ -15,31 +15,9 @@ import java.util.concurrent.TimeUnit;
  */
 public class ContextFactory {
 
-	public GenericApplicationContext buildContext(SpringRedisConfiguration configuration, Environment environment) {
-
+	public GenericApplicationContext buildContext() {
 		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
-		context.getBeanFactory().registerSingleton("configuration", configuration);
-
-		ExecutorConfiguration executorConfiguration = configuration.getExecutorConfiguration();
-		ExecutorService pollerExecutorService = environment.managedExecutorService(
-				"Poller-%d",
-				1,
-				2,
-				executorConfiguration.getKeepAliveTime(),
-				TimeUnit.MILLISECONDS);
-		context.getBeanFactory().registerSingleton("pollingExecutor", pollerExecutorService);
-
-		ExecutorService taskExecutorService = environment.managedExecutorService(
-				"Tasks-%d",
-				executorConfiguration.getCorePoolSize(),
-				executorConfiguration.getMaximumPoolSize(),
-				executorConfiguration.getKeepAliveTime(),
-				TimeUnit.MILLISECONDS);
-		context.getBeanFactory().registerSingleton("taskExecutor", taskExecutorService);
-
-		context.register(ApplicationConfig.class);
-
-		context.refresh();
+		context.scan("net.jonstef");
 		return context;
 	}
 
